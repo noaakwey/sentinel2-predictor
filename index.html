@@ -115,8 +115,14 @@ function buildCalendarData(passes, startDate, endDate, utcOffset) {
   let cur = new Date(Date.UTC(startDate.getUTCFullYear(), startDate.getUTCMonth(), 1));
   const endMonth = new Date(Date.UTC(endDate.getUTCFullYear(), endDate.getUTCMonth(), 1));
   while (cur <= endMonth) {
-    months.push({ year: cur.getUTCFullYear(), month: cur.getUTCMonth() });
-    cur = new Date(Date.UTC(cur.getUTCFullYear(), cur.getUTCMonth()+1, 1));
+    const y = cur.getUTCFullYear(), m = cur.getUTCMonth();
+    // Only include month if it has at least one pass
+    const hasPass = Object.keys(byDate).some(d => {
+      const [dy, dm] = d.split('-').map(Number);
+      return dy === y && (dm - 1) === m;
+    });
+    if (hasPass) months.push({ year: y, month: m });
+    cur = new Date(Date.UTC(y, m + 1, 1));
   }
   return { byDate, months };
 }
@@ -170,7 +176,7 @@ function App() {
   const [csvName, setCsvName] = useState("");
   const [parseError, setParseError] = useState("");
   const [dragOver, setDragOver] = useState(false);
-  const [isDark, setIsDark] = useState(true);
+  const [isDark, setIsDark] = useState(false);
 
   const today = new Date();
   const ny = today.getUTCFullYear() + 1;
