@@ -12,10 +12,10 @@
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   html, body, #root { height: 100%; }
-  body { background: #0d1117; color: #e6edf3; font-family: 'IBM Plex Mono', 'Courier New', monospace; }
+  body { background: #0d1117; color: #e6edf3; font-family: 'IBM Plex Mono', 'Courier New', monospace; transition: background .2s, color .2s; }
   ::-webkit-scrollbar { width: 6px; }
-  ::-webkit-scrollbar-track { background: #161b22; }
-  ::-webkit-scrollbar-thumb { background: #30363d; border-radius: 3px; }
+  ::-webkit-scrollbar-track { background: var(--scroll-track, #161b22); }
+  ::-webkit-scrollbar-thumb { background: var(--scroll-thumb, #30363d); border-radius: 3px; }
 </style>
 </head>
 <body>
@@ -135,6 +135,34 @@ function satColor(sat) {
 const MONTH_NAMES = ["Январь","Февраль","Март","Апрель","Май","Июнь","Июль","Август","Сентябрь","Октябрь","Ноябрь","Декабрь"];
 const DOW = ["Пн","Вт","Ср","Чт","Пт","Сб","Вс"];
 
+// ── Themes ────────────────────────────────────────────────────────────────────
+const DARK = {
+  pageBg:"#0d1117",pageColor:"#e6edf3",headerBorder:"#21262d",accentText:"#58a6ff",
+  mutedText:"#8b949e",dimText:"#64748b",cardBg:"#161b22",cardBorder:"#21262d",
+  inputBg:"#161b22",inputBorder:"#30363d",uploadBg:"#161b22",uploadBorder:"#30363d",
+  uploadHover:"#0d2040",btnSBg:"#2d3748",btnSBorder:"#4a5568",btnSColor:"#e2e8f0",
+  slColor:"#94a3b8",
+  emptyBg:"#2d3748",emptyBorder:"#4a5568",emptyNum:"#a0aec0",
+  singleBg:"#3b82f6",singleBorder:"#2563eb",singleNum:"#dbeafe",
+  multiBg:"#22c55e",multiBorder:"#16a34a",multiNum:"#052e16",
+  legSingle:"#3b82f6",legMulti:"#22c55e",
+  dotA:"#bfdbfe",dotB:"#bbf7d0",dotC:"#fbbf24",dotD:"#f9a8d4",
+  ttBg:"#1c2128",ttBorder:"#30363d",ttDate:"#58a6ff",ttRow:"#8b949e",
+};
+const LIGHT = {
+  pageBg:"#f8fafc",pageColor:"#1e293b",headerBorder:"#e2e8f0",accentText:"#1d6fb8",
+  mutedText:"#475569",dimText:"#94a3b8",cardBg:"#ffffff",cardBorder:"#e2e8f0",
+  inputBg:"#ffffff",inputBorder:"#cbd5e1",uploadBg:"#f1f5f9",uploadBorder:"#cbd5e1",
+  uploadHover:"#dbeafe",btnSBg:"#f1f5f9",btnSBorder:"#cbd5e1",btnSColor:"#334155",
+  slColor:"#64748b",
+  emptyBg:"#f1f5f9",emptyBorder:"#e2e8f0",emptyNum:"#94a3b8",
+  singleBg:"#dbeafe",singleBorder:"#93c5fd",singleNum:"#1e40af",
+  multiBg:"#dcfce7",multiBorder:"#86efac",multiNum:"#14532d",
+  legSingle:"#3b82f6",legMulti:"#22c55e",
+  dotA:"#1d4ed8",dotB:"#15803d",dotC:"#b45309",dotD:"#9d174d",
+  ttBg:"#ffffff",ttBorder:"#e2e8f0",ttDate:"#1d6fb8",ttRow:"#475569",
+};
+
 // ── App ───────────────────────────────────────────────────────────────────────
 function App() {
   const [step, setStep] = useState("upload");
@@ -142,6 +170,7 @@ function App() {
   const [csvName, setCsvName] = useState("");
   const [parseError, setParseError] = useState("");
   const [dragOver, setDragOver] = useState(false);
+  const [isDark, setIsDark] = useState(true);
 
   const today = new Date();
   const ny = today.getUTCFullYear() + 1;
@@ -154,6 +183,12 @@ function App() {
   const [tooltip, setTooltip]   = useState(null);
   const [exportStr, setExportStr] = useState("");
   const fileInputRef = useRef();
+
+  const T = isDark ? DARK : LIGHT;
+  React.useEffect(() => {
+    document.body.style.background = T.pageBg;
+    document.body.style.color = T.pageColor;
+  }, [isDark]);
 
   const processFile = useCallback((file) => {
     setParseError("");
@@ -213,48 +248,59 @@ function App() {
     : 3;
 
   return (
-    <div style={{fontFamily:"'IBM Plex Mono','Courier New',monospace",minHeight:"100vh",background:"#0d1117",color:"#e6edf3"}}>
+    <div style={{fontFamily:"'IBM Plex Mono','Courier New',monospace",minHeight:"100vh",background:T.pageBg,color:T.pageColor,transition:"background .2s,color .2s"}}>
       <style>{`
-        .upload-zone{border:1.5px dashed #30363d;border-radius:12px;padding:48px 24px;text-align:center;cursor:pointer;transition:all .2s;background:#161b22}
-        .upload-zone:hover,.upload-zone.drag{border-color:#58a6ff;background:#0d2040}
+        .upload-zone{border:1.5px dashed ${T.uploadBorder};border-radius:12px;padding:48px 24px;text-align:center;cursor:pointer;transition:all .2s;background:${T.uploadBg}}
+        .upload-zone:hover,.upload-zone.drag{border-color:${T.accentText};background:${T.uploadHover}}
         .btn-p{background:#238636;border:none;color:#fff;padding:10px 22px;border-radius:6px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:600;letter-spacing:.03em;transition:background .15s}
         .btn-p:hover{background:#2ea043}
-        .btn-s{background:#2d3748;border:1px solid #4a5568;color:#e2e8f0;padding:8px 16px;border-radius:6px;cursor:pointer;font-family:inherit;font-size:12px;transition:all .15s}
-        .btn-s:hover{background:#4a5568;border-color:#718096;color:#fff}
-        .ifield{background:#161b22;border:1px solid #30363d;color:#e6edf3;padding:8px 12px;border-radius:6px;font-family:inherit;font-size:13px;width:100%;transition:border-color .15s}
-        .ifield:focus{outline:none;border-color:#58a6ff}
-        .stat-box{background:#161b22;border:1px solid #21262d;border-radius:8px;padding:14px 18px}
-        .cal-month{background:#161b22;border:1px solid #21262d;border-radius:10px;padding:14px}
+        .btn-s{background:${T.btnSBg};border:1px solid ${T.btnSBorder};color:${T.btnSColor};padding:8px 16px;border-radius:6px;cursor:pointer;font-family:inherit;font-size:12px;transition:all .15s}
+        .btn-s:hover{opacity:.8}
+        .ifield{background:${T.inputBg};border:1px solid ${T.inputBorder};color:${T.pageColor};padding:8px 12px;border-radius:6px;font-family:inherit;font-size:13px;width:100%;transition:border-color .15s}
+        .ifield:focus{outline:none;border-color:${T.accentText}}
+        .stat-box{background:${T.cardBg};border:1px solid ${T.cardBorder};border-radius:8px;padding:14px 18px}
+        .cal-month{background:${T.cardBg};border:1px solid ${T.cardBorder};border-radius:10px;padding:14px}
         .day-cell{border-radius:6px;min-height:46px;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:5px 2px;transition:opacity .12s}
         .day-cell.has-pass{cursor:pointer}.day-cell.has-pass:hover{opacity:.8}
         .day-num{font-size:14px;font-weight:600;line-height:1.2}
         .sat-dots{display:flex;gap:3px;margin-top:5px;flex-wrap:wrap;justify-content:center}
-        .sat-dot{width:9px;height:9px;border-radius:50%;box-shadow:0 0 4px currentColor}
-        .tt{position:fixed;background:#1c2128;border:1px solid #30363d;border-radius:8px;padding:10px 14px;font-size:11px;pointer-events:none;z-index:9999;box-shadow:0 8px 24px rgba(0,0,0,.5);min-width:160px}
-        .tt-date{font-size:12px;font-weight:600;color:#58a6ff;margin-bottom:6px}
-        .tt-row{color:#8b949e;line-height:1.8}
+        .sat-dot{width:9px;height:9px;border-radius:50%}
+        .tt{position:fixed;background:${T.ttBg};border:1px solid ${T.ttBorder};border-radius:8px;padding:10px 14px;font-size:11px;pointer-events:none;z-index:9999;box-shadow:0 8px 24px rgba(0,0,0,.18);min-width:160px}
+        .tt-date{font-size:12px;font-weight:600;color:${T.ttDate};margin-bottom:6px}
+        .tt-row{color:${T.ttRow};line-height:1.8}
         .tt-sat{font-weight:500}
         @keyframes fi{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
         .fi{animation:fi .3s ease forwards}
-        .sl{font-size:10px;font-weight:600;letter-spacing:.12em;color:#94a3b8;text-transform:uppercase;margin-bottom:8px}
-        input[type=date],input[type=number]{color-scheme:dark}
-        a{color:#58a6ff}
+        .sl{font-size:10px;font-weight:600;letter-spacing:.12em;color:${T.slColor};text-transform:uppercase;margin-bottom:8px}
+        input[type=date],input[type=number]{color-scheme:${isDark?"dark":"light"}}
+        a{color:${T.accentText}}
       `}</style>
 
       {/* Header */}
-      <div style={{borderBottom:"1px solid #21262d",padding:"16px 28px",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+      <div style={{borderBottom:`1px solid ${T.headerBorder}`,padding:"16px 28px",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
         <div style={{display:"flex",alignItems:"center",gap:10}}>
           <div style={{width:8,height:8,borderRadius:"50%",background:"#238636",boxShadow:"0 0 8px #238636"}}/>
-          <span style={{fontSize:13,fontWeight:600,color:"#58a6ff",letterSpacing:".05em"}}>SENTINEL-2</span>
-          <span style={{fontSize:13,color:"#484f58"}}>/</span>
-          <span style={{fontSize:13,color:"#8b949e"}}>pass predictor</span>
+          <span style={{fontSize:13,fontWeight:600,color:T.accentText,letterSpacing:".05em"}}>SENTINEL-2</span>
+          <span style={{fontSize:13,color:T.dimText}}>/</span>
+          <span style={{fontSize:13,color:T.mutedText}}>pass predictor</span>
         </div>
-        {step !== "upload" && (
-          <div style={{display:"flex",gap:8}}>
+        <div style={{display:"flex",gap:8,alignItems:"center"}}>
+          {step !== "upload" && <>
             {step === "result" && <button className="btn-s" onClick={()=>setStep("config")}>← параметры</button>}
             <button className="btn-s" onClick={()=>{setStep("upload");setCsvRows(null);setCsvName("");setParseError("");}}>новый файл</button>
-          </div>
-        )}
+          </>}
+          <button onClick={()=>setIsDark(d=>!d)} title="Переключить тему" style={{
+            background:"transparent",border:`1px solid ${T.btnSBorder}`,borderRadius:20,
+            width:56,height:28,cursor:"pointer",display:"flex",alignItems:"center",
+            justifyContent:isDark?"flex-end":"flex-start",padding:"3px 4px",transition:"all .25s",
+            flexShrink:0,
+          }}>
+            <div style={{width:20,height:20,borderRadius:"50%",background:isDark?"#f1c40f":"#334155",
+              display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,transition:"all .25s"}}>
+              {isDark?"☀":"🌙"}
+            </div>
+          </button>
+        </div>
       </div>
 
       <div style={{padding:"28px",maxWidth:1100,margin:"0 auto"}}>
@@ -263,11 +309,11 @@ function App() {
         {step === "upload" && (
           <div className="fi" style={{maxWidth:540,margin:"40px auto"}}>
             <div style={{marginBottom:32}}>
-              <div style={{fontSize:22,fontWeight:600,marginBottom:8,color:"#f1f5f9"}}>Загрузка исторических данных</div>
-              <div style={{fontSize:13,color:"#cbd5e1",lineHeight:1.7}}>
+              <div style={{fontSize:22,fontWeight:600,marginBottom:8,color:T.pageColor}}>Загрузка исторических данных</div>
+              <div style={{fontSize:13,color:T.mutedText,lineHeight:1.7}}>
                 Загрузите CSV-выгрузку пролётов Sentinel-2 над вашей AOI.<br/>
-                Формат: <code style={{color:"#7dd3fc",fontSize:12}}>date, time_utc, satellite</code><br/>
-                <span style={{color:"#64748b",fontSize:11}}>Источник: Copernicus Browser → History → Export CSV</span>
+                Формат: <code style={{color:T.accentText,fontSize:12}}>date, time_utc, satellite</code><br/>
+                <span style={{color:T.dimText,fontSize:11}}>Источник: Copernicus Browser → History → Export CSV</span>
               </div>
             </div>
             <div
@@ -277,9 +323,9 @@ function App() {
               onDrop={handleDrop}
               onClick={()=>fileInputRef.current.click()}
             >
-              <div style={{fontSize:36,marginBottom:12,opacity:.6,color:"#94a3b8"}}>↑</div>
-              <div style={{fontSize:14,color:"#e2e8f0",marginBottom:6}}>Перетащите CSV или кликните для выбора</div>
-              <div style={{fontSize:11,color:"#64748b"}}>Экспорт из Copernicus Browser / GEE / любой STAC-выгрузки</div>
+              <div style={{fontSize:36,marginBottom:12,opacity:.6,color:T.mutedText}}>↑</div>
+              <div style={{fontSize:14,color:T.pageColor,marginBottom:6}}>Перетащите CSV или кликните для выбора</div>
+              <div style={{fontSize:11,color:T.dimText}}>Экспорт из Copernicus Browser / GEE / любой STAC-выгрузки</div>
             </div>
             <input ref={fileInputRef} type="file" accept=".csv,.txt" style={{display:"none"}} onChange={e=>e.target.files[0]&&processFile(e.target.files[0])}/>
             {parseError && <div style={{marginTop:12,padding:"10px 14px",background:"#3d1f1f",border:"1px solid #f85149",borderRadius:6,fontSize:12,color:"#ff7b72"}}>⚠ {parseError}</div>}
@@ -289,11 +335,11 @@ function App() {
         {/* Step 2 — Config */}
         {step === "config" && (
           <div className="fi" style={{maxWidth:480,margin:"20px auto"}}>
-            <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:24,padding:"12px 16px",background:"#161b22",border:"1px solid #21262d",borderRadius:8}}>
+            <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:24,padding:"12px 16px",background:T.cardBg,border:`1px solid ${T.cardBorder}`,borderRadius:8}}>
               <div style={{width:8,height:8,borderRadius:"50%",background:"#238636"}}/>
               <div>
-                <div style={{fontSize:12,fontWeight:600,color:"#58a6ff"}}>{csvName}</div>
-                <div style={{fontSize:11,color:"#484f58"}}>{csvRows?.length} строк · {[...new Set(csvRows?.map(r=>r.sat)||[])].join(", ")}</div>
+                <div style={{fontSize:12,fontWeight:600,color:T.accentText}}>{csvName}</div>
+                <div style={{fontSize:11,color:T.dimText}}>{csvRows?.length} строк · {[...new Set(csvRows?.map(r=>r.sat)||[])].join(", ")}</div>
               </div>
             </div>
             <div style={{display:"flex",flexDirection:"column",gap:20}}>
@@ -301,11 +347,11 @@ function App() {
                 <div className="sl">Диапазон прогноза</div>
                 <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
                   <div>
-                <div style={{fontSize:11,color:"#cbd5e1",marginBottom:4}}>Начало</div>
+                <div style={{fontSize:11,color:T.mutedText,marginBottom:4}}>Начало</div>
                     <input className="ifield" type="date" value={rangeStart} onChange={e=>setRangeStart(e.target.value)}/>
                   </div>
                   <div>
-                    <div style={{fontSize:11,color:"#cbd5e1",marginBottom:4}}>Конец</div>
+                    <div style={{fontSize:11,color:T.mutedText,marginBottom:4}}>Конец</div>
                     <input className="ifield" type="date" value={rangeEnd} onChange={e=>setRangeEnd(e.target.value)}/>
                   </div>
                 </div>
@@ -313,9 +359,9 @@ function App() {
               <div>
                 <div className="sl">Часовой пояс (местное время)</div>
                 <div style={{display:"flex",alignItems:"center",gap:10}}>
-                  <span style={{fontSize:12,color:"#cbd5e1"}}>UTC</span>
+                  <span style={{fontSize:12,color:T.mutedText}}>UTC</span>
                   <input className="ifield" type="number" value={utcOffset} min={-12} max={14} onChange={e=>setUtcOffset(Number(e.target.value))} style={{width:90}}/>
-                  <span style={{fontSize:11,color:"#64748b"}}>Казань / Москва = +3</span>
+                  <span style={{fontSize:11,color:T.dimText}}>Казань / Москва = +3</span>
                 </div>
               </div>
               {parseError && <div style={{padding:"10px 14px",background:"#3d1f1f",border:"1px solid #f85149",borderRadius:6,fontSize:12,color:"#ff7b72"}}>⚠ {parseError}</div>}
@@ -337,8 +383,8 @@ function App() {
                 {val:uniqueSats.length,  lbl:"спутников"},
               ].map(({val,lbl})=>(
                 <div key={lbl} className="stat-box">
-                  <div style={{fontSize:22,fontWeight:600,color:"#58a6ff",lineHeight:1}}>{val}</div>
-                  <div style={{fontSize:10,color:"#94a3b8",marginTop:4,letterSpacing:".05em"}}>{lbl}</div>
+                  <div style={{fontSize:22,fontWeight:600,color:T.accentText,lineHeight:1}}>{val}</div>
+                  <div style={{fontSize:10,color:T.mutedText,marginTop:4,letterSpacing:".05em"}}>{lbl}</div>
                 </div>
               ))}
             </div>
@@ -346,20 +392,20 @@ function App() {
             {/* Legend + export */}
             <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16,flexWrap:"wrap",gap:10}}>
               <div style={{display:"flex",gap:16,flexWrap:"wrap"}}>
-                <div style={{display:"flex",alignItems:"center",gap:6,fontSize:12,color:"#e2e8f0"}}>
-                  <div style={{width:16,height:16,borderRadius:4,background:"#3b82f6",border:"2px solid #2563eb"}}/>1 спутник
+                <div style={{display:"flex",alignItems:"center",gap:6,fontSize:12,color:T.pageColor}}>
+                  <div style={{width:16,height:16,borderRadius:4,background:T.legSingle,border:"2px solid #2563eb"}}/>1 спутник
                 </div>
-                <div style={{display:"flex",alignItems:"center",gap:6,fontSize:12,color:"#e2e8f0"}}>
-                  <div style={{width:16,height:16,borderRadius:4,background:"#22c55e",border:"2px solid #16a34a"}}/>2+ спутника
+                <div style={{display:"flex",alignItems:"center",gap:6,fontSize:12,color:T.pageColor}}>
+                  <div style={{width:16,height:16,borderRadius:4,background:T.legMulti,border:"2px solid #16a34a"}}/>2+ спутника
                 </div>
                 {uniqueSats.map(s=>(
-                  <div key={s} style={{display:"flex",alignItems:"center",gap:6,fontSize:12,color:"#e2e8f0"}}>
-                    <div style={{width:11,height:11,borderRadius:"50%",background:satColor(s).legendDot}}/>
+                  <div key={s} style={{display:"flex",alignItems:"center",gap:6,fontSize:12,color:T.pageColor}}>
+                    <div style={{width:11,height:11,borderRadius:"50%",background:T[`dot${s.slice(-1)}`]||satColor(s).legendDot}}/>
                     {satColor(s).label}
                   </div>
                 ))}
               </div>
-              <button className="btn-s" onClick={downloadCSV} style={{fontSize:11}}>↓ скачать CSV</button>
+              <button className="btn-s" onClick={downloadCSV} style={{fontSize:11,color:T.btnSColor}}>↓ скачать CSV</button>
             </div>
 
             {/* Calendar */}
@@ -369,11 +415,11 @@ function App() {
                 const firstDow    = (new Date(Date.UTC(year,month,1)).getUTCDay()+6)%7;
                 return (
                   <div key={`${year}-${month}`} className="cal-month">
-                    <div style={{fontSize:13,fontWeight:600,color:"#58a6ff",marginBottom:8,letterSpacing:".04em"}}>
+                    <div style={{fontSize:13,fontWeight:600,color:T.accentText,marginBottom:8,letterSpacing:".04em"}}>
                       {MONTH_NAMES[month]} {year}
                     </div>
                     <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:2,marginBottom:4}}>
-                      {DOW.map(d=><div key={d} style={{fontSize:11,color:"#8b949e",textAlign:"center",padding:"3px 0",fontWeight:600}}>{d}</div>)}
+                      {DOW.map(d=><div key={d} style={{fontSize:11,color:T.mutedText,textAlign:"center",padding:"3px 0",fontWeight:600}}>{d}</div>)}
                     </div>
                     <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:2}}>
                       {Array(firstDow).fill(null).map((_,i)=><div key={"e"+i}/>)}
@@ -383,9 +429,9 @@ function App() {
                         const info    = calData.byDate[dateStr];
                         const isMulti = info && new Set(info.map(p=>p.sat)).size > 1;
                         let bg, border, nc;
-                        if (!info)        { bg="#2d3748"; border="1.5px solid #4a5568"; nc="#a0aec0"; }
-                        else if (isMulti) { bg="#22c55e"; border="1.5px solid #16a34a"; nc="#052e16"; }
-                        else              { bg="#3b82f6"; border="1.5px solid #2563eb"; nc="#dbeafe"; }
+                        if (!info)        { bg=T.emptyBg;  border=`1.5px solid ${T.emptyBorder}`;  nc=T.emptyNum; }
+                        else if (isMulti) { bg=T.multiBg;  border=`1.5px solid ${T.multiBorder}`;  nc=T.multiNum; }
+                        else              { bg=T.singleBg; border=`1.5px solid ${T.singleBorder}`; nc=T.singleNum; }
                         return (
                           <div
                             key={day}
@@ -399,9 +445,7 @@ function App() {
                               <div className="sat-dots">
                                 {info.map((p,idx)=>(
                                   <div key={idx} className="sat-dot" style={{
-                                    background: satColor(p.sat).dot,
-                                    outline: `2px solid ${satColor(p.sat).ring}`,
-                                    outlineOffset: "1px"
+                                    background: T[`dot${p.sat.slice(-1)}`] || satColor(p.sat).dot,
                                   }}/>
                                 ))}
                               </div>
@@ -426,7 +470,7 @@ function App() {
           </div>
           {tooltip.passes.map((p,i)=>(
             <div key={i} className="tt-row">
-              <span className="tt-sat" style={{color:satColor(p.sat).legendDot}}>{satColor(p.sat).label}</span><br/>
+              <span className="tt-sat" style={{color:T[`dot${p.sat.slice(-1)}`]||satColor(p.sat).legendDot}}>{satColor(p.sat).label}</span><br/>
               <span>UTC {p.utc}</span>
               {utcOffset!==0&&<><br/><span>UTC{utcOffset>0?"+":""}{utcOffset} {p.local}</span></>}
             </div>
