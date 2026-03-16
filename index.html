@@ -123,10 +123,10 @@ function buildCalendarData(passes, startDate, endDate, utcOffset) {
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const SAT_COLORS = {
-  "Sentinel-2A": { dot: "#1a73e8", label: "S-2A" },
-  "Sentinel-2B": { dot: "#1e8c45", label: "S-2B" },
-  "Sentinel-2C": { dot: "#c77c00", label: "S-2C" },
-  "Sentinel-2D": { dot: "#9c27b0", label: "S-2D" },
+  "Sentinel-2A": { dot: "#4da6ff", label: "S-2A" },
+  "Sentinel-2B": { dot: "#4dff91", label: "S-2B" },
+  "Sentinel-2C": { dot: "#ffcc00", label: "S-2C" },
+  "Sentinel-2D": { dot: "#ff6eb4", label: "S-2D" },
 };
 function satColor(sat) { return SAT_COLORS[sat] || { dot: "#888", label: sat.replace("Sentinel-","S-") }; }
 
@@ -207,9 +207,8 @@ function App() {
   })();
 
   const colCount = calData
-    ? calData.months.length <= 3 ? calData.months.length
-      : calData.months.length <= 6 ? 3 : 4
-    : 4;
+    ? Math.min(calData.months.length, 3)
+    : 3;
 
   return (
     <div style={{fontFamily:"'IBM Plex Mono','Courier New',monospace",minHeight:"100vh",background:"#0d1117",color:"#e6edf3"}}>
@@ -224,11 +223,11 @@ function App() {
         .ifield:focus{outline:none;border-color:#58a6ff}
         .stat-box{background:#161b22;border:1px solid #21262d;border-radius:8px;padding:14px 18px}
         .cal-month{background:#161b22;border:1px solid #21262d;border-radius:10px;padding:14px}
-        .day-cell{border-radius:5px;min-height:34px;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:3px 2px;transition:opacity .12s}
-        .day-cell.has-pass{cursor:pointer}.day-cell.has-pass:hover{opacity:.75}
-        .day-num{font-size:10px;font-weight:500;line-height:1.2}
-        .sat-dots{display:flex;gap:2px;margin-top:2px;flex-wrap:wrap;justify-content:center}
-        .sat-dot{width:5px;height:5px;border-radius:50%}
+        .day-cell{border-radius:6px;min-height:46px;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:5px 2px;transition:opacity .12s}
+        .day-cell.has-pass{cursor:pointer}.day-cell.has-pass:hover{opacity:.8}
+        .day-num{font-size:14px;font-weight:600;line-height:1.2}
+        .sat-dots{display:flex;gap:3px;margin-top:5px;flex-wrap:wrap;justify-content:center}
+        .sat-dot{width:9px;height:9px;border-radius:50%;box-shadow:0 0 4px currentColor}
         .tt{position:fixed;background:#1c2128;border:1px solid #30363d;border-radius:8px;padding:10px 14px;font-size:11px;pointer-events:none;z-index:9999;box-shadow:0 8px 24px rgba(0,0,0,.5);min-width:160px}
         .tt-date{font-size:12px;font-weight:600;color:#58a6ff;margin-bottom:6px}
         .tt-row{color:#8b949e;line-height:1.8}
@@ -345,15 +344,15 @@ function App() {
             {/* Legend + export */}
             <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16,flexWrap:"wrap",gap:10}}>
               <div style={{display:"flex",gap:16,flexWrap:"wrap"}}>
-                <div style={{display:"flex",alignItems:"center",gap:6,fontSize:11,color:"#8b949e"}}>
-                  <div style={{width:14,height:14,borderRadius:3,background:"#0d2040",border:"1px solid #2d6a9f"}}/>1 спутник
+                <div style={{display:"flex",alignItems:"center",gap:6,fontSize:12,color:"#8b949e"}}>
+                  <div style={{width:14,height:14,borderRadius:3,background:"#0a1e3d",border:"1.5px solid #4da6ff"}}/>1 спутник
                 </div>
-                <div style={{display:"flex",alignItems:"center",gap:6,fontSize:11,color:"#8b949e"}}>
-                  <div style={{width:14,height:14,borderRadius:3,background:"#1a3a20",border:"1px solid #238636"}}/>2+ спутника
+                <div style={{display:"flex",alignItems:"center",gap:6,fontSize:12,color:"#8b949e"}}>
+                  <div style={{width:14,height:14,borderRadius:3,background:"#0f3320",border:"1.5px solid #3fb950"}}/>2+ спутника
                 </div>
                 {uniqueSats.map(s=>(
-                  <div key={s} style={{display:"flex",alignItems:"center",gap:5,fontSize:11,color:"#8b949e"}}>
-                    <div style={{width:8,height:8,borderRadius:"50%",background:satColor(s).dot}}/>
+                  <div key={s} style={{display:"flex",alignItems:"center",gap:6,fontSize:12,color:"#8b949e"}}>
+                    <div style={{width:10,height:10,borderRadius:"50%",background:satColor(s).dot,boxShadow:`0 0 5px ${satColor(s).dot}`}}/>
                     {satColor(s).label}
                   </div>
                 ))}
@@ -368,22 +367,22 @@ function App() {
                 const firstDow    = (new Date(Date.UTC(year,month,1)).getUTCDay()+6)%7;
                 return (
                   <div key={`${year}-${month}`} className="cal-month">
-                    <div style={{fontSize:11,fontWeight:600,color:"#58a6ff",marginBottom:8,letterSpacing:".04em"}}>
+                    <div style={{fontSize:13,fontWeight:600,color:"#58a6ff",marginBottom:8,letterSpacing:".04em"}}>
                       {MONTH_NAMES[month]} {year}
                     </div>
-                    <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:1,marginBottom:3}}>
-                      {DOW.map(d=><div key={d} style={{fontSize:9,color:"#484f58",textAlign:"center",padding:"2px 0",fontWeight:600}}>{d}</div>)}
+                    <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:2,marginBottom:4}}>
+                      {DOW.map(d=><div key={d} style={{fontSize:11,color:"#8b949e",textAlign:"center",padding:"3px 0",fontWeight:600}}>{d}</div>)}
                     </div>
-                    <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:1}}>
+                    <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:2}}>
                       {Array(firstDow).fill(null).map((_,i)=><div key={"e"+i}/>)}
                       {Array(daysInMonth).fill(null).map((_,i)=>{
                         const day     = i+1;
                         const dateStr = `${year}-${pad2(month+1)}-${pad2(day)}`;
                         const info    = calData.byDate[dateStr];
                         const isMulti = info && new Set(info.map(p=>p.sat)).size > 1;
-                        const bg     = !info?"#0d1117":isMulti?"#1a3a20":"#0d2040";
-                        const border = !info?"1px solid #161b22":isMulti?"1px solid #238636":"1px solid #2d6a9f";
-                        const nc     = !info?"#30363d":isMulti?"#3fb950":"#58a6ff";
+                        const bg     = !info ? "#1a1f26" : isMulti ? "#0f3320" : "#0a1e3d";
+                        const border = !info ? "1.5px solid #21262d" : isMulti ? "1.5px solid #3fb950" : "1.5px solid #4da6ff";
+                        const nc     = !info ? "#484f58" : isMulti ? "#4dff91" : "#7cc8ff";
                         return (
                           <div
                             key={day}
