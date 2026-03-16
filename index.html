@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Sentinel-2 Pass Predictor</title>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body, #root { height: 100%; }
+  body { background: #0d1117; color: #e6edf3; font-family: 'IBM Plex Mono', 'Courier New', monospace; }
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: #161b22; }
+  ::-webkit-scrollbar-thumb { background: #30363d; border-radius: 3px; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useCallback, useRef } = React;
+
+// ── CSV parsing ───────────────────────────────────────────────────────────────
+function parseCSV(text) {
+  const lines = text.trim().split(/\r?\n/);
+  const header = lines[0].toLowerCase();
+  if (!header.includes("date") || !header.includes("satellite")) {
+    throw new Error("CSV должен содержать колонки: date, time_utc, satellite");
+  }
+  const rows = [];
+  for (let i = 1; i < lines.length; i++) {
+    const parts = lines[i].split(",");
+    if (parts.length < 3) continue;
+    const date = parts[0].trim();
+    const time = parts[1].trim();
+    const sat = parts[2].trim();
+    if (!date || !time || !sat) continue;
+    const dt = new Date(`${date}T${time}Z`);
+    if (isNaN(dt)) continue;
+    rows.push({ date, time, sat, dt });
+  }
+  if (rows.length === 0) throw new Error("Файл не содержит корректных данных");
+  return rows;
+}
+
+// ── Orbital prediction ────────────────────────────────────────────────────────
+function getTrack(dt) { return dt.getUTCHours() < 8 ? "A" : "B"; }
+
+function predictPasses(rows, startDate, endDate) {
+  const groups = {};
+  for (const r of rows) {
+    const key = `${r.sat}|${getTrack(r.dt)}`;
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(r);
+  }
+  const results = [];
+  for (const [key, passes] of Object.entries(groups)) {
+    const [sat] = key.split("|");
+    passes.sort((a, b) => a.dt - b.dt);
+    if (passes.length < 2) continue;
+    const intervals = [];
+    for (let i = 1; i < passes.length; i++) {
+      const diff = (passes[i].dt - passes[i-1].dt) / 86400000;
+      if (diff > 1) intervals.push(diff);
+    }
+    if (!intervals.length) continue;
+    const cycleIntervals = intervals.filter(d => Math.abs(d - Math.round(d/10)*10) < 2);
+    const pool = cycleIntervals.length ? cycleIntervals : intervals;
+    const cycleDays = Math.round(pool.reduce((a,b) => a+b, 0) / pool.length);
+    const times = passes.map(p => p.dt.getUTCHours()*3600 + p.dt.getUTCMinutes()*60 + p.dt.getUTCSeconds());
+    times.sort((a,b) => a-b);
+    const medianTime = times[Math.floor(times.length/2)];
+    let seed = passes[passes.length-1].dt;
+    while (seed < new Date(startDate.getTime() - cycleDays*86400000))
+      seed = new Date(seed.getTime() + cycleDays*86400000);
+    while (seed >= startDate)
+      seed = new Date(seed.getTime() - cycleDays*86400000);
+    let cur = new Date(seed);
+    while (cur < endDate) {
+      cur = new Date(cur.getTime() + cycleDays*86400000);
+      if (cur >= startDate && cur < endDate) {
+        const d = new Date(cur);
+        d.setUTCHours(Math.floor(medianTime/3600), Math.floor((medianTime%3600)/60), medianTime%60, 0);
+        results.push({ dt: d, sat });
+      }
+    }
+  }
+  results.sort((a,b) => a.dt - b.dt);
+  return results;
+}
+
+// ── Formatting ────────────────────────────────────────────────────────────────
+function pad2(n) { return String(n).padStart(2,"0"); }
+function formatUTC(dt) { return `${pad2(dt.getUTCHours())}:${pad2(dt.getUTCMinutes())}:${pad2(dt.getUTCSeconds())}`; }
+function formatLocal(dt, off) {
+  const l = new Date(dt.getTime() + off*3600000);
+  return `${pad2(l.getUTCHours())}:${pad2(l.getUTCMinutes())}:${pad2(l.getUTCSeconds())}`;
+}
+function toDateStr(dt) {
+  return `${dt.getUTCFullYear()}-${pad2(dt.getUTCMonth()+1)}-${pad2(dt.getUTCDate())}`;
+}
+
+// ── Calendar builder ──────────────────────────────────────────────────────────
+function buildCalendarData(passes, startDate, endDate, utcOffset) {
+  const byDate = {};
+  for (const p of passes) {
+    const key = toDateStr(p.dt);
+    if (!byDate[key]) byDate[key] = [];
+    byDate[key].push({ sat: p.sat, utc: formatUTC(p.dt), local: formatLocal(p.dt, utcOffset) });
+  }
+  const months = [];
+  let cur = new Date(Date.UTC(startDate.getUTCFullYear(), startDate.getUTCMonth(), 1));
+  const endMonth = new Date(Date.UTC(endDate.getUTCFullYear(), endDate.getUTCMonth(), 1));
+  while (cur <= endMonth) {
+    months.push({ year: cur.getUTCFullYear(), month: cur.getUTCMonth() });
+    cur = new Date(Date.UTC(cur.getUTCFullYear(), cur.getUTCMonth()+1, 1));
+  }
+  return { byDate, months };
+}
+
+// ── Constants ─────────────────────────────────────────────────────────────────
+const SAT_COLORS = {
+  "Sentinel-2A": { dot: "#1a73e8", label: "S-2A" },
+  "Sentinel-2B": { dot: "#1e8c45", label: "S-2B" },
+  "Sentinel-2C": { dot: "#c77c00", label: "S-2C" },
+  "Sentinel-2D": { dot: "#9c27b0", label: "S-2D" },
+};
+function satColor(sat) { return SAT_COLORS[sat] || { dot: "#888", label: sat.replace("Sentinel-","S-") }; }
+
+const MONTH_NAMES = ["Январь","Февраль","Март","Апрель","Май","Июнь","Июль","Август","Сентябрь","Октябрь","Ноябрь","Декабрь"];
+const DOW = ["Пн","Вт","Ср","Чт","Пт","Сб","Вс"];
+
+// ── App ───────────────────────────────────────────────────────────────────────
+function App() {
+  const [step, setStep] = useState("upload");
+  const [csvRows, setCsvRows] = useState(null);
+  const [csvName, setCsvName] = useState("");
+  const [parseError, setParseError] = useState("");
+  const [dragOver, setDragOver] = useState(false);
+
+  const today = new Date();
+  const ny = today.getUTCFullYear() + 1;
+  const [rangeStart, setRangeStart] = useState(`${ny}-01-01`);
+  const [rangeEnd, setRangeEnd]     = useState(`${ny}-12-31`);
+  const [utcOffset, setUtcOffset]   = useState(3);
+
+  const [passes, setPasses]     = useState([]);
+  const [calData, setCalData]   = useState(null);
+  const [tooltip, setTooltip]   = useState(null);
+  const [exportStr, setExportStr] = useState("");
+  const fileInputRef = useRef();
+
+  const processFile = useCallback((file) => {
+    setParseError("");
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const rows = parseCSV(e.target.result);
+        setCsvRows(rows);
+        setCsvName(file.name);
+        setStep("config");
+      } catch(err) { setParseError(err.message); }
+    };
+    reader.readAsText(file);
+  }, []);
+
+  const handleDrop = useCallback((e) => {
+    e.preventDefault(); setDragOver(false);
+    const file = e.dataTransfer.files[0];
+    if (file) processFile(file);
+  }, [processFile]);
+
+  const handleCompute = () => {
+    const start = new Date(rangeStart + "T00:00:00Z");
+    const end   = new Date(rangeEnd   + "T23:59:59Z");
+    if (start >= end) { setParseError("Дата начала должна быть раньше даты конца"); return; }
+    const result = predictPasses(csvRows, start, end);
+    if (!result.length) { setParseError("Нет пролётов в указанном диапазоне — проверьте даты"); return; }
+    const cal = buildCalendarData(result, start, end, utcOffset);
+    const lines = ["date,time_utc,time_local,satellite"];
+    for (const p of result)
+      lines.push(`${toDateStr(p.dt)},${formatUTC(p.dt)},${formatLocal(p.dt, utcOffset)},${p.sat}`);
+    setExportStr(lines.join("\n"));
+    setPasses(result);
+    setCalData(cal);
+    setStep("result");
+  };
+
+  const downloadCSV = () => {
+    const blob = new Blob([exportStr], { type: "text/csv" });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement("a");
+    a.href = url; a.download = `sentinel2_passes_${rangeStart}_${rangeEnd}.csv`; a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const uniqueSats = calData ? [...new Set(passes.map(p => p.sat))].sort() : [];
+  const multiDays  = calData ? Object.values(calData.byDate).filter(arr => new Set(arr.map(p=>p.sat)).size > 1).length : 0;
+  const maxGap = (() => {
+    if (!passes.length) return 0;
+    let max = 0;
+    for (let i=1;i<passes.length;i++) { const g=(passes[i].dt-passes[i-1].dt)/86400000; if(g>max) max=g; }
+    return Math.round(max);
+  })();
+
+  const colCount = calData
+    ? calData.months.length <= 3 ? calData.months.length
+      : calData.months.length <= 6 ? 3 : 4
+    : 4;
+
+  return (
+    <div style={{fontFamily:"'IBM Plex Mono','Courier New',monospace",minHeight:"100vh",background:"#0d1117",color:"#e6edf3"}}>
+      <style>{`
+        .upload-zone{border:1.5px dashed #30363d;border-radius:12px;padding:48px 24px;text-align:center;cursor:pointer;transition:all .2s;background:#161b22}
+        .upload-zone:hover,.upload-zone.drag{border-color:#58a6ff;background:#0d2040}
+        .btn-p{background:#238636;border:none;color:#fff;padding:10px 22px;border-radius:6px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:600;letter-spacing:.03em;transition:background .15s}
+        .btn-p:hover{background:#2ea043}
+        .btn-s{background:transparent;border:1px solid #30363d;color:#8b949e;padding:8px 16px;border-radius:6px;cursor:pointer;font-family:inherit;font-size:12px;transition:all .15s}
+        .btn-s:hover{border-color:#58a6ff;color:#58a6ff}
+        .ifield{background:#161b22;border:1px solid #30363d;color:#e6edf3;padding:8px 12px;border-radius:6px;font-family:inherit;font-size:13px;width:100%;transition:border-color .15s}
+        .ifield:focus{outline:none;border-color:#58a6ff}
+        .stat-box{background:#161b22;border:1px solid #21262d;border-radius:8px;padding:14px 18px}
+        .cal-month{background:#161b22;border:1px solid #21262d;border-radius:10px;padding:14px}
+        .day-cell{border-radius:5px;min-height:34px;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:3px 2px;transition:opacity .12s}
+        .day-cell.has-pass{cursor:pointer}.day-cell.has-pass:hover{opacity:.75}
+        .day-num{font-size:10px;font-weight:500;line-height:1.2}
+        .sat-dots{display:flex;gap:2px;margin-top:2px;flex-wrap:wrap;justify-content:center}
+        .sat-dot{width:5px;height:5px;border-radius:50%}
+        .tt{position:fixed;background:#1c2128;border:1px solid #30363d;border-radius:8px;padding:10px 14px;font-size:11px;pointer-events:none;z-index:9999;box-shadow:0 8px 24px rgba(0,0,0,.5);min-width:160px}
+        .tt-date{font-size:12px;font-weight:600;color:#58a6ff;margin-bottom:6px}
+        .tt-row{color:#8b949e;line-height:1.8}
+        .tt-sat{font-weight:500}
+        @keyframes fi{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+        .fi{animation:fi .3s ease forwards}
+        .sl{font-size:10px;font-weight:600;letter-spacing:.12em;color:#484f58;text-transform:uppercase;margin-bottom:8px}
+        input[type=date],input[type=number]{color-scheme:dark}
+        a{color:#58a6ff}
+      `}</style>
+
+      {/* Header */}
+      <div style={{borderBottom:"1px solid #21262d",padding:"16px 28px",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+        <div style={{display:"flex",alignItems:"center",gap:10}}>
+          <div style={{width:8,height:8,borderRadius:"50%",background:"#238636",boxShadow:"0 0 8px #238636"}}/>
+          <span style={{fontSize:13,fontWeight:600,color:"#58a6ff",letterSpacing:".05em"}}>SENTINEL-2</span>
+          <span style={{fontSize:13,color:"#484f58"}}>/</span>
+          <span style={{fontSize:13,color:"#8b949e"}}>pass predictor</span>
+        </div>
+        {step !== "upload" && (
+          <div style={{display:"flex",gap:8}}>
+            {step === "result" && <button className="btn-s" onClick={()=>setStep("config")}>← параметры</button>}
+            <button className="btn-s" onClick={()=>{setStep("upload");setCsvRows(null);setCsvName("");setParseError("");}}>новый файл</button>
+          </div>
+        )}
+      </div>
+
+      <div style={{padding:"28px",maxWidth:1100,margin:"0 auto"}}>
+
+        {/* Step 1 — Upload */}
+        {step === "upload" && (
+          <div className="fi" style={{maxWidth:540,margin:"40px auto"}}>
+            <div style={{marginBottom:32}}>
+              <div style={{fontSize:22,fontWeight:600,marginBottom:8}}>Загрузка исторических данных</div>
+              <div style={{fontSize:13,color:"#8b949e",lineHeight:1.7}}>
+                Загрузите CSV-выгрузку пролётов Sentinel-2 над вашей AOI.<br/>
+                Формат: <code style={{color:"#58a6ff",fontSize:12}}>date, time_utc, satellite</code><br/>
+                <span style={{color:"#484f58",fontSize:11}}>Источник: Copernicus Browser → History → Export CSV</span>
+              </div>
+            </div>
+            <div
+              className={`upload-zone${dragOver?" drag":""}`}
+              onDragOver={e=>{e.preventDefault();setDragOver(true)}}
+              onDragLeave={()=>setDragOver(false)}
+              onDrop={handleDrop}
+              onClick={()=>fileInputRef.current.click()}
+            >
+              <div style={{fontSize:36,marginBottom:12,opacity:.3}}>↑</div>
+              <div style={{fontSize:14,color:"#8b949e",marginBottom:6}}>Перетащите CSV или кликните для выбора</div>
+              <div style={{fontSize:11,color:"#484f58"}}>Экспорт из Copernicus Browser / GEE / любой STAC-выгрузки</div>
+            </div>
+            <input ref={fileInputRef} type="file" accept=".csv,.txt" style={{display:"none"}} onChange={e=>e.target.files[0]&&processFile(e.target.files[0])}/>
+            {parseError && <div style={{marginTop:12,padding:"10px 14px",background:"#3d1f1f",border:"1px solid #f85149",borderRadius:6,fontSize:12,color:"#ff7b72"}}>⚠ {parseError}</div>}
+          </div>
+        )}
+
+        {/* Step 2 — Config */}
+        {step === "config" && (
+          <div className="fi" style={{maxWidth:480,margin:"20px auto"}}>
+            <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:24,padding:"12px 16px",background:"#161b22",border:"1px solid #21262d",borderRadius:8}}>
+              <div style={{width:8,height:8,borderRadius:"50%",background:"#238636"}}/>
+              <div>
+                <div style={{fontSize:12,fontWeight:600,color:"#58a6ff"}}>{csvName}</div>
+                <div style={{fontSize:11,color:"#484f58"}}>{csvRows?.length} строк · {[...new Set(csvRows?.map(r=>r.sat)||[])].join(", ")}</div>
+              </div>
+            </div>
+            <div style={{display:"flex",flexDirection:"column",gap:20}}>
+              <div>
+                <div className="sl">Диапазон прогноза</div>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+                  <div>
+                    <div style={{fontSize:11,color:"#8b949e",marginBottom:4}}>Начало</div>
+                    <input className="ifield" type="date" value={rangeStart} onChange={e=>setRangeStart(e.target.value)}/>
+                  </div>
+                  <div>
+                    <div style={{fontSize:11,color:"#8b949e",marginBottom:4}}>Конец</div>
+                    <input className="ifield" type="date" value={rangeEnd} onChange={e=>setRangeEnd(e.target.value)}/>
+                  </div>
+                </div>
+              </div>
+              <div>
+                <div className="sl">Часовой пояс (местное время)</div>
+                <div style={{display:"flex",alignItems:"center",gap:10}}>
+                  <span style={{fontSize:12,color:"#8b949e"}}>UTC</span>
+                  <input className="ifield" type="number" value={utcOffset} min={-12} max={14} onChange={e=>setUtcOffset(Number(e.target.value))} style={{width:90}}/>
+                  <span style={{fontSize:11,color:"#484f58"}}>Казань / Москва = +3</span>
+                </div>
+              </div>
+              {parseError && <div style={{padding:"10px 14px",background:"#3d1f1f",border:"1px solid #f85149",borderRadius:6,fontSize:12,color:"#ff7b72"}}>⚠ {parseError}</div>}
+              <button className="btn-p" onClick={handleCompute} style={{marginTop:4}}>Рассчитать пролёты →</button>
+            </div>
+          </div>
+        )}
+
+        {/* Step 3 — Result */}
+        {step === "result" && calData && (
+          <div className="fi">
+            {/* Stats */}
+            <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:10,marginBottom:20}}>
+              {[
+                {val:passes.length,      lbl:"пролётов"},
+                {val:Object.keys(calData.byDate).length, lbl:"дней съёмки"},
+                {val:multiDays,          lbl:"двойных дней"},
+                {val:`≤${maxGap}`,       lbl:"макс. пропуск, дн."},
+                {val:uniqueSats.length,  lbl:"спутников"},
+              ].map(({val,lbl})=>(
+                <div key={lbl} className="stat-box">
+                  <div style={{fontSize:22,fontWeight:600,color:"#58a6ff",lineHeight:1}}>{val}</div>
+                  <div style={{fontSize:10,color:"#484f58",marginTop:4,letterSpacing:".05em"}}>{lbl}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Legend + export */}
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16,flexWrap:"wrap",gap:10}}>
+              <div style={{display:"flex",gap:16,flexWrap:"wrap"}}>
+                <div style={{display:"flex",alignItems:"center",gap:6,fontSize:11,color:"#8b949e"}}>
+                  <div style={{width:14,height:14,borderRadius:3,background:"#0d2040",border:"1px solid #2d6a9f"}}/>1 спутник
+                </div>
+                <div style={{display:"flex",alignItems:"center",gap:6,fontSize:11,color:"#8b949e"}}>
+                  <div style={{width:14,height:14,borderRadius:3,background:"#1a3a20",border:"1px solid #238636"}}/>2+ спутника
+                </div>
+                {uniqueSats.map(s=>(
+                  <div key={s} style={{display:"flex",alignItems:"center",gap:5,fontSize:11,color:"#8b949e"}}>
+                    <div style={{width:8,height:8,borderRadius:"50%",background:satColor(s).dot}}/>
+                    {satColor(s).label}
+                  </div>
+                ))}
+              </div>
+              <button className="btn-s" onClick={downloadCSV} style={{fontSize:11}}>↓ скачать CSV</button>
+            </div>
+
+            {/* Calendar */}
+            <div style={{display:"grid",gridTemplateColumns:`repeat(${colCount},1fr)`,gap:12}}>
+              {calData.months.map(({year,month})=>{
+                const daysInMonth = new Date(Date.UTC(year,month+1,0)).getUTCDate();
+                const firstDow    = (new Date(Date.UTC(year,month,1)).getUTCDay()+6)%7;
+                return (
+                  <div key={`${year}-${month}`} className="cal-month">
+                    <div style={{fontSize:11,fontWeight:600,color:"#58a6ff",marginBottom:8,letterSpacing:".04em"}}>
+                      {MONTH_NAMES[month]} {year}
+                    </div>
+                    <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:1,marginBottom:3}}>
+                      {DOW.map(d=><div key={d} style={{fontSize:9,color:"#484f58",textAlign:"center",padding:"2px 0",fontWeight:600}}>{d}</div>)}
+                    </div>
+                    <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:1}}>
+                      {Array(firstDow).fill(null).map((_,i)=><div key={"e"+i}/>)}
+                      {Array(daysInMonth).fill(null).map((_,i)=>{
+                        const day     = i+1;
+                        const dateStr = `${year}-${pad2(month+1)}-${pad2(day)}`;
+                        const info    = calData.byDate[dateStr];
+                        const isMulti = info && new Set(info.map(p=>p.sat)).size > 1;
+                        const bg     = !info?"#0d1117":isMulti?"#1a3a20":"#0d2040";
+                        const border = !info?"1px solid #161b22":isMulti?"1px solid #238636":"1px solid #2d6a9f";
+                        const nc     = !info?"#30363d":isMulti?"#3fb950":"#58a6ff";
+                        return (
+                          <div
+                            key={day}
+                            className={`day-cell${info?" has-pass":""}`}
+                            style={{background:bg,border}}
+                            onMouseMove={info?(e)=>setTooltip({x:e.clientX,y:e.clientY,dateStr,passes:info}):undefined}
+                            onMouseLeave={info?()=>setTooltip(null):undefined}
+                          >
+                            <span className="day-num" style={{color:nc}}>{day}</span>
+                            {info&&(
+                              <div className="sat-dots">
+                                {info.map((p,idx)=><div key={idx} className="sat-dot" style={{background:satColor(p.sat).dot}}/>)}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Tooltip */}
+      {tooltip&&(
+        <div className="tt" style={{left:tooltip.x+14,top:tooltip.y-10}}>
+          <div className="tt-date">
+            {(()=>{const[y,m,d]=tooltip.dateStr.split("-");return`${parseInt(d)}.${parseInt(m)}.${y}`;})()}
+          </div>
+          {tooltip.passes.map((p,i)=>(
+            <div key={i} className="tt-row">
+              <span className="tt-sat" style={{color:satColor(p.sat).dot}}>{satColor(p.sat).label}</span><br/>
+              <span>UTC {p.utc}</span>
+              {utcOffset!==0&&<><br/><span>UTC{utcOffset>0?"+":""}{utcOffset} {p.local}</span></>}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>
