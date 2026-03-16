@@ -122,13 +122,15 @@ function buildCalendarData(passes, startDate, endDate, utcOffset) {
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
-const SAT_COLORS = {
-  "Sentinel-2A": { dot: "#4da6ff", label: "S-2A" },
-  "Sentinel-2B": { dot: "#4dff91", label: "S-2B" },
-  "Sentinel-2C": { dot: "#ffcc00", label: "S-2C" },
-  "Sentinel-2D": { dot: "#ff6eb4", label: "S-2D" },
+const SAT_META = {
+  "Sentinel-2A": { dot: "#fff",    ring: "#93c5fd", label: "S-2A", legendDot: "#3b82f6" },
+  "Sentinel-2B": { dot: "#fff",    ring: "#bbf7d0", label: "S-2B", legendDot: "#22c55e" },
+  "Sentinel-2C": { dot: "#fbbf24", ring: "#fef08a", label: "S-2C", legendDot: "#fbbf24" },
+  "Sentinel-2D": { dot: "#f9a8d4", ring: "#fce7f3", label: "S-2D", legendDot: "#ec4899" },
 };
-function satColor(sat) { return SAT_COLORS[sat] || { dot: "#888", label: sat.replace("Sentinel-","S-") }; }
+function satColor(sat) {
+  return SAT_META[sat] || { dot:"#fff", ring:"#ccc", label: sat.replace("Sentinel-","S-"), legendDot:"#aaa" };
+}
 
 const MONTH_NAMES = ["Январь","Февраль","Март","Апрель","Май","Июнь","Июль","Август","Сентябрь","Октябрь","Ноябрь","Декабрь"];
 const DOW = ["Пн","Вт","Ср","Чт","Пт","Сб","Вс"];
@@ -344,15 +346,15 @@ function App() {
             {/* Legend + export */}
             <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16,flexWrap:"wrap",gap:10}}>
               <div style={{display:"flex",gap:16,flexWrap:"wrap"}}>
-                <div style={{display:"flex",alignItems:"center",gap:6,fontSize:12,color:"#8b949e"}}>
-                  <div style={{width:14,height:14,borderRadius:3,background:"#0a1e3d",border:"1.5px solid #4da6ff"}}/>1 спутник
+                <div style={{display:"flex",alignItems:"center",gap:6,fontSize:12,color:"#e2e8f0"}}>
+                  <div style={{width:16,height:16,borderRadius:4,background:"#3b82f6",border:"2px solid #2563eb"}}/>1 спутник
                 </div>
-                <div style={{display:"flex",alignItems:"center",gap:6,fontSize:12,color:"#8b949e"}}>
-                  <div style={{width:14,height:14,borderRadius:3,background:"#0f3320",border:"1.5px solid #3fb950"}}/>2+ спутника
+                <div style={{display:"flex",alignItems:"center",gap:6,fontSize:12,color:"#e2e8f0"}}>
+                  <div style={{width:16,height:16,borderRadius:4,background:"#22c55e",border:"2px solid #16a34a"}}/>2+ спутника
                 </div>
                 {uniqueSats.map(s=>(
-                  <div key={s} style={{display:"flex",alignItems:"center",gap:6,fontSize:12,color:"#8b949e"}}>
-                    <div style={{width:10,height:10,borderRadius:"50%",background:satColor(s).dot,boxShadow:`0 0 5px ${satColor(s).dot}`}}/>
+                  <div key={s} style={{display:"flex",alignItems:"center",gap:6,fontSize:12,color:"#e2e8f0"}}>
+                    <div style={{width:11,height:11,borderRadius:"50%",background:satColor(s).legendDot}}/>
                     {satColor(s).label}
                   </div>
                 ))}
@@ -380,9 +382,10 @@ function App() {
                         const dateStr = `${year}-${pad2(month+1)}-${pad2(day)}`;
                         const info    = calData.byDate[dateStr];
                         const isMulti = info && new Set(info.map(p=>p.sat)).size > 1;
-                        const bg     = !info ? "#1a1f26" : isMulti ? "#0f3320" : "#0a1e3d";
-                        const border = !info ? "1.5px solid #21262d" : isMulti ? "1.5px solid #3fb950" : "1.5px solid #4da6ff";
-                        const nc     = !info ? "#484f58" : isMulti ? "#4dff91" : "#7cc8ff";
+                        let bg, border, nc;
+                        if (!info)        { bg="#1e2530"; border="1.5px solid #2d3748"; nc="#4a5568"; }
+                        else if (isMulti) { bg="#22c55e"; border="1.5px solid #16a34a"; nc="#052e16"; }
+                        else              { bg="#3b82f6"; border="1.5px solid #2563eb"; nc="#dbeafe"; }
                         return (
                           <div
                             key={day}
@@ -394,7 +397,13 @@ function App() {
                             <span className="day-num" style={{color:nc}}>{day}</span>
                             {info&&(
                               <div className="sat-dots">
-                                {info.map((p,idx)=><div key={idx} className="sat-dot" style={{background:satColor(p.sat).dot}}/>)}
+                                {info.map((p,idx)=>(
+                                  <div key={idx} className="sat-dot" style={{
+                                    background: satColor(p.sat).dot,
+                                    outline: `2px solid ${satColor(p.sat).ring}`,
+                                    outlineOffset: "1px"
+                                  }}/>
+                                ))}
                               </div>
                             )}
                           </div>
@@ -417,7 +426,7 @@ function App() {
           </div>
           {tooltip.passes.map((p,i)=>(
             <div key={i} className="tt-row">
-              <span className="tt-sat" style={{color:satColor(p.sat).dot}}>{satColor(p.sat).label}</span><br/>
+              <span className="tt-sat" style={{color:satColor(p.sat).legendDot}}>{satColor(p.sat).label}</span><br/>
               <span>UTC {p.utc}</span>
               {utcOffset!==0&&<><br/><span>UTC{utcOffset>0?"+":""}{utcOffset} {p.local}</span></>}
             </div>
