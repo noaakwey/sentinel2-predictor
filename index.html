@@ -219,8 +219,8 @@ function App() {
         .upload-zone:hover,.upload-zone.drag{border-color:#58a6ff;background:#0d2040}
         .btn-p{background:#238636;border:none;color:#fff;padding:10px 22px;border-radius:6px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:600;letter-spacing:.03em;transition:background .15s}
         .btn-p:hover{background:#2ea043}
-        .btn-s{background:transparent;border:1px solid #30363d;color:#8b949e;padding:8px 16px;border-radius:6px;cursor:pointer;font-family:inherit;font-size:12px;transition:all .15s}
-        .btn-s:hover{border-color:#58a6ff;color:#58a6ff}
+        .btn-s{background:#2d3748;border:1px solid #4a5568;color:#e2e8f0;padding:8px 16px;border-radius:6px;cursor:pointer;font-family:inherit;font-size:12px;transition:all .15s}
+        .btn-s:hover{background:#4a5568;border-color:#718096;color:#fff}
         .ifield{background:#161b22;border:1px solid #30363d;color:#e6edf3;padding:8px 12px;border-radius:6px;font-family:inherit;font-size:13px;width:100%;transition:border-color .15s}
         .ifield:focus{outline:none;border-color:#58a6ff}
         .stat-box{background:#161b22;border:1px solid #21262d;border-radius:8px;padding:14px 18px}
@@ -236,7 +236,7 @@ function App() {
         .tt-sat{font-weight:500}
         @keyframes fi{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
         .fi{animation:fi .3s ease forwards}
-        .sl{font-size:10px;font-weight:600;letter-spacing:.12em;color:#484f58;text-transform:uppercase;margin-bottom:8px}
+        .sl{font-size:10px;font-weight:600;letter-spacing:.12em;color:#94a3b8;text-transform:uppercase;margin-bottom:8px}
         input[type=date],input[type=number]{color-scheme:dark}
         a{color:#58a6ff}
       `}</style>
@@ -263,11 +263,11 @@ function App() {
         {step === "upload" && (
           <div className="fi" style={{maxWidth:540,margin:"40px auto"}}>
             <div style={{marginBottom:32}}>
-              <div style={{fontSize:22,fontWeight:600,marginBottom:8}}>Загрузка исторических данных</div>
-              <div style={{fontSize:13,color:"#8b949e",lineHeight:1.7}}>
+              <div style={{fontSize:22,fontWeight:600,marginBottom:8,color:"#f1f5f9"}}>Загрузка исторических данных</div>
+              <div style={{fontSize:13,color:"#cbd5e1",lineHeight:1.7}}>
                 Загрузите CSV-выгрузку пролётов Sentinel-2 над вашей AOI.<br/>
-                Формат: <code style={{color:"#58a6ff",fontSize:12}}>date, time_utc, satellite</code><br/>
-                <span style={{color:"#484f58",fontSize:11}}>Источник: Copernicus Browser → History → Export CSV</span>
+                Формат: <code style={{color:"#7dd3fc",fontSize:12}}>date, time_utc, satellite</code><br/>
+                <span style={{color:"#64748b",fontSize:11}}>Источник: Copernicus Browser → History → Export CSV</span>
               </div>
             </div>
             <div
@@ -277,9 +277,9 @@ function App() {
               onDrop={handleDrop}
               onClick={()=>fileInputRef.current.click()}
             >
-              <div style={{fontSize:36,marginBottom:12,opacity:.3}}>↑</div>
-              <div style={{fontSize:14,color:"#8b949e",marginBottom:6}}>Перетащите CSV или кликните для выбора</div>
-              <div style={{fontSize:11,color:"#484f58"}}>Экспорт из Copernicus Browser / GEE / любой STAC-выгрузки</div>
+              <div style={{fontSize:36,marginBottom:12,opacity:.6,color:"#94a3b8"}}>↑</div>
+              <div style={{fontSize:14,color:"#e2e8f0",marginBottom:6}}>Перетащите CSV или кликните для выбора</div>
+              <div style={{fontSize:11,color:"#64748b"}}>Экспорт из Copernicus Browser / GEE / любой STAC-выгрузки</div>
             </div>
             <input ref={fileInputRef} type="file" accept=".csv,.txt" style={{display:"none"}} onChange={e=>e.target.files[0]&&processFile(e.target.files[0])}/>
             {parseError && <div style={{marginTop:12,padding:"10px 14px",background:"#3d1f1f",border:"1px solid #f85149",borderRadius:6,fontSize:12,color:"#ff7b72"}}>⚠ {parseError}</div>}
@@ -301,11 +301,11 @@ function App() {
                 <div className="sl">Диапазон прогноза</div>
                 <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
                   <div>
-                    <div style={{fontSize:11,color:"#8b949e",marginBottom:4}}>Начало</div>
+                <div style={{fontSize:11,color:"#cbd5e1",marginBottom:4}}>Начало</div>
                     <input className="ifield" type="date" value={rangeStart} onChange={e=>setRangeStart(e.target.value)}/>
                   </div>
                   <div>
-                    <div style={{fontSize:11,color:"#8b949e",marginBottom:4}}>Конец</div>
+                    <div style={{fontSize:11,color:"#cbd5e1",marginBottom:4}}>Конец</div>
                     <input className="ifield" type="date" value={rangeEnd} onChange={e=>setRangeEnd(e.target.value)}/>
                   </div>
                 </div>
@@ -313,9 +313,9 @@ function App() {
               <div>
                 <div className="sl">Часовой пояс (местное время)</div>
                 <div style={{display:"flex",alignItems:"center",gap:10}}>
-                  <span style={{fontSize:12,color:"#8b949e"}}>UTC</span>
+                  <span style={{fontSize:12,color:"#cbd5e1"}}>UTC</span>
                   <input className="ifield" type="number" value={utcOffset} min={-12} max={14} onChange={e=>setUtcOffset(Number(e.target.value))} style={{width:90}}/>
-                  <span style={{fontSize:11,color:"#484f58"}}>Казань / Москва = +3</span>
+                  <span style={{fontSize:11,color:"#64748b"}}>Казань / Москва = +3</span>
                 </div>
               </div>
               {parseError && <div style={{padding:"10px 14px",background:"#3d1f1f",border:"1px solid #f85149",borderRadius:6,fontSize:12,color:"#ff7b72"}}>⚠ {parseError}</div>}
@@ -338,7 +338,7 @@ function App() {
               ].map(({val,lbl})=>(
                 <div key={lbl} className="stat-box">
                   <div style={{fontSize:22,fontWeight:600,color:"#58a6ff",lineHeight:1}}>{val}</div>
-                  <div style={{fontSize:10,color:"#484f58",marginTop:4,letterSpacing:".05em"}}>{lbl}</div>
+                  <div style={{fontSize:10,color:"#94a3b8",marginTop:4,letterSpacing:".05em"}}>{lbl}</div>
                 </div>
               ))}
             </div>
@@ -383,7 +383,7 @@ function App() {
                         const info    = calData.byDate[dateStr];
                         const isMulti = info && new Set(info.map(p=>p.sat)).size > 1;
                         let bg, border, nc;
-                        if (!info)        { bg="#1e2530"; border="1.5px solid #2d3748"; nc="#4a5568"; }
+                        if (!info)        { bg="#2d3748"; border="1.5px solid #4a5568"; nc="#a0aec0"; }
                         else if (isMulti) { bg="#22c55e"; border="1.5px solid #16a34a"; nc="#052e16"; }
                         else              { bg="#3b82f6"; border="1.5px solid #2563eb"; nc="#dbeafe"; }
                         return (
